@@ -5,18 +5,19 @@
 You are required to build a **deterministic extraction system** to identify:
 
 1. **bench** – All judges listed as part of the bench (coram/present/before).
-2. **judge_final** – Judge(s) who authored/delivered the final judgment (may be one or more).
+2. **author_judge** – Judge(s) who authored/delivered the final judgment (may be one or more).
 
-You must extract this information from the case reports provided.
+You must extract this information from the court decisions provided.
 
 ---
 
 ## Input
 
-- All input case reports will be placed inside the `data/` folder.
-- There will be **4 case reports**.
+- All input court decisions are **PDF files** placed inside the `data/` folder.
+- There are exactly **4 court decisions**, named `sample-judgment-1.pdf` through `sample-judgment-4.pdf`.
+- Your program only needs to handle PDF files.
 
-Your program must automatically process all files inside the `data/` folder.
+Your program must automatically process all `.pdf` files inside the `data/` folder.
 
 ---
 
@@ -27,18 +28,16 @@ Your program must generate structured output in JSON format.
 For each input file, produce:
 
 {
-  "source_file": "case1.pdf",
+  "source_file": "sample-judgment-1.pdf",
   "bench": ["Judge Name 1", "Judge Name 2"],
-  "author_judge": ["Judge Name 1"],
-  "evidence": {
-    "bench": "Original extracted text snippet",
-    "author_judge": "Original extracted text snippet"
-  }
+  "author_judge": ["Judge Name 1"]
 }
 
-Output files may be:
-- One JSONL file per input file, or
-- A single combined JSONL file.
+Your program must write one JSON file per input file into the `output/` folder, matching the input filename:
+
+- `data/sample-judgment-1.pdf` → `output/sample-judgment-1.json`
+- `data/sample-judgment-2.pdf` → `output/sample-judgment-2.json`
+- etc.
 
 The output must be reproducible by running your script.
 
@@ -50,13 +49,13 @@ The output must be reproducible by running your script.
    - No OpenAI, Anthropic, OpenRouter, Gemini, etc.
    - No AI-based extraction tools.
 2. ❌ No manual editing of results.
-3. ✅ Extraction must be done using deterministic methods such as:
-   - Python
-   - Regex
-   - Rule-based parsing
-   - Standard NLP libraries (non-generative)
+3. ✅ You may use any non-LLM approach, including but not limited to:
+   - Regex and rule-based parsing
+   - NLP libraries (e.g. spaCy, NLTK, stanza)
+   - Any other method that does not involve prompting a generative model
 4. ✅ All work must be included in a Git repository.
 5. ✅ The project must include clear execution instructions in `README.md`.
+6. ✅ Your `README.md` must include an **## Approach** section describing your extraction approach in plain English.
 
 ---
 
@@ -65,50 +64,19 @@ The output must be reproducible by running your script.
 We will evaluate:
 
 - Correctness of `bench` extraction
-- Correctness of `judge_final` extraction
+- Correctness of `author_judge` extraction
 - Robust handling of formatting variations
 - Code structure and clarity
 - Reproducibility of results
 
 ---
 
-## Environment Setup
+## Environment & Execution
 
-This project uses **uv** for dependency management and execution.
-
-Install uv if you do not already have it:
-
-curl -Ls https://astral.sh/uv/install.sh | sh
-
-
-or follow the official installation instructions:
-https://docs.astral.sh/uv/
-
----
-
-## Running the Extraction
-
-Your repository must clearly include the commands required to run the extraction.
-
-Example execution:
-
-uv run main.py
-
-or
-
-uv run main.py --input_dir data --output output.json
-
-All dependencies should be declared so that `uv` can automatically install them when running the project.
-
----
-
-## Scaling Question (Conceptual)
-
-In addition to implementation, answer the following question in your `README.md`:
-
-> If this system needed to process 20,000+ case reports, some exceeding 300+ pages, how would you modify or optimize your approach to ensure scalability and performance?
-
-This answer should be brief but technically sound.
+- Use **uv** for dependency management. You may assume `uv` is already installed on the testing environment.
+- Python version must be **3.11 or higher**.
+- You may add any dependencies you need, but they must be declared in `pyproject.toml` so that `uv sync` installs them.
+- Your `README.md` must include **complete instructions** to clone, set up, and run your project. We will evaluate your submission by following these instructions exactly.
 
 ---
 
@@ -120,7 +88,7 @@ admin@paralegal.lk
 
 Include:
 
-- Git repository link
+- Git repository link — your repository **must** be named `paralegal-lk-internship-assignment` and **must** be public
 - Your CV
 - A cover letter
 - Clear execution instructions in your repository
