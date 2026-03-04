@@ -82,17 +82,15 @@ We will evaluate:
 
 ## Submission Instructions
 
-Send the following to:
+Send an email with the subject line: "Application for Engineering Internship - {Your First Name} {Your Last Name}"
+to admin@paralegal.lk.
 
-admin@paralegal.lk
+Your email should include:
 
-Include:
-
-- Git repository link — your repository **must** be named `paralegal-lk-internship-assignment` and **must** be public
-- Your CV
-- A cover letter
-- Clear execution instructions in your repository
-
+- A link to your GitHub repository with the answer.
+    - Note: your answer repository **must** be named `paralegal-lk-internship-assignment` and **must** be public
+- Your CV as an attachment
+- Alongside a cover letter explaining why you are interested in the role 
 ---
 
 ## Notes
