@@ -1,4 +1,4 @@
-"""PDF extraction module for court decision documents."""
+"""PDF text extraction with automatic OCR fallback."""
 
 import pdfplumber
 import os
@@ -10,7 +10,7 @@ try:
     import io
     OCR_AVAILABLE = True
     
-    # Try to configure Tesseract path for Windows
+    # Windows: auto-detect Tesseract path
     if os.name == 'nt':
         common_paths = [
             r'C:\Program Files\Tesseract-OCR\tesseract.exe',
@@ -25,18 +25,7 @@ except ImportError:
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
-    """
-    Extract all text from a PDF file.
-    
-    First attempts native text extraction using pdfplumber.
-    If extraction yields minimal text and OCR is available, falls back to OCR.
-    
-    Args:
-        pdf_path: Path to the PDF file
-        
-    Returns:
-        Full text content of the PDF
-    """
+    """Extract text from PDF, fallback to OCR if needed."""
     text_content = []
     extraction_error = None
     
@@ -51,12 +40,12 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     
     extracted_text = "\n".join(text_content)
     
-    # If native extraction yielded minimal text or failed, try OCR if available
+    # If not enough text, try OCR
     if len(extracted_text.strip()) < 100:
         if extraction_error:
-            print(f"  [Native extraction returned error, attempting OCR...]")
+            print(f"  [Trying OCR...]")
         elif len(extracted_text.strip()) < 30:
-            print(f"  [Native extraction returned minimal text ({len(extracted_text)} chars), attempting OCR...]")
+            print(f"  [Minimal text, checking OCR...]")
         
         if OCR_AVAILABLE:
             ocr_text = _extract_text_with_ocr(pdf_path)
@@ -70,20 +59,7 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 
 
 def _extract_text_with_ocr(pdf_path: str) -> str:
-    """
-    Extract text from PDF using OCR (pytesseract).
-    
-    Focuses on last pages where judge names & signatures typically appear.
-    Applies aggressive preprocessing for scanned documents.
-    
-    Requires: Tesseract OCR system installation + pytesseract, PIL, PyMuPDF Python packages
-    
-    Args:
-        pdf_path: Path to the PDF file
-        
-    Returns:
-        Text extracted via OCR (or empty string if OCR unavailable/fails)
-    """
+    """Extract text via OCR from PDF pages."""
     if not OCR_AVAILABLE:
         print("  [OCR not available - install with: pip install pymupdf pytesseract pillow]")
         print("  [Also requires system Tesseract installation: https://github.com/UB-Mannheim/tesseract/wiki]")
@@ -94,19 +70,12 @@ def _extract_text_with_ocr(pdf_path: str) -> str:
         pdf_document = fitz.open(pdf_path)
         total_pages = len(pdf_document)
         
-        # Focus on last 3 pages (where judges & signatures typically are)
-        # But also check first page for "Before:" sections
+        # Process first page and last 2-3 pages (judges usually at start/end)
         pages_to_process = []
-        
-        # Always include first page (might have "Before: Judge names")
         if total_pages > 0:
             pages_to_process.append(0)
-        
-        # Include last 2-3 pages (signatures, judge info)
         if total_pages > 1:
             pages_to_process.extend(range(max(1, total_pages - 2), total_pages))
-        
-        # Remove duplicates and sort
         pages_to_process = sorted(set(pages_to_process))
         
         for page_num in pages_to_process:
@@ -118,30 +87,22 @@ def _extract_text_with_ocr(pdf_path: str) -> str:
             
             img = Image.open(io.BytesIO(image_data))
             
-            # Convert to grayscale
+            # Preprocess for better OCR
             if img.mode != 'L':
                 img = img.convert('L')
             
-            # Apply multiple preprocessing steps for better OCR
-            # Step 1: Increase contrast significantly
             enhancer = ImageEnhance.Contrast(img)
-            img = enhancer.enhance(3.0)  # Aggressive contrast increase
+            img = enhancer.enhance(3.0)
             
-            # Step 2: Enhance brightness
             enhancer = ImageEnhance.Brightness(img)
             img = enhancer.enhance(1.2)
             
-            # Step 3: Sharpen
             img = img.filter(ImageFilter.SHARPEN)
-            img = img.filter(ImageFilter.SHARPEN)  # Apply twice
+            img = img.filter(ImageFilter.SHARPEN)
             
-            # Step 4: Convert to binary (black & white) for cleaner text
             threshold = 127
             img = img.point(lambda x: 0 if x < threshold else 255, '1')
             
-            # Tesseract OCR config for better text detection
-            # psm=6: Assume a single uniform block of text
-            # oem=3: Use both legacy and LSTM OCR engine
             config = r'--psm 6 --oem 3'
             
             page_text = pytesseract.image_to_string(img, lang='eng', config=config)

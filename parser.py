@@ -1,26 +1,15 @@
-"""Judge extraction logic using regex patterns and positional heuristics."""
+"""Judge extraction using regex patterns."""
 
 import re
 from typing import List, Set
 
 
 def extract_bench_judges(text: str) -> List[str]:
-    """
-    Extract judges from the bench section using positional heuristics.
-    
-    Looks for keywords like "Before:", "Present:", "Coram", or just "Before judge_name"
-    and judges listed after "SUPREME COURT", "HIGH COURT", "COURT OF APPEAL".
-    
-    Args:
-        text: Full text content of the court decision
-        
-    Returns:
-        List of judge names on the bench
-    """
+    """Extract bench judges from court decision text."""
     bench_judges = []
     lines = text.split('\n')
     
-    # Strategy 1: Look for explicit keywords "Before:", "Present:", "Coram" (with colon)
+    # Look for keywords: Before, Present, Coram
     for i, line in enumerate(lines):
         if re.search(r'(?:Before|Present|Coram)\s*:', line, re.IGNORECASE):
             match = re.search(r'(?:Before|Present|Coram)\s*:\s*(.*)', line, re.IGNORECASE)
@@ -40,8 +29,7 @@ def extract_bench_judges(text: str) -> List[str]:
                     bench_judges.extend(judges)
                 j += 1
     
-    # Strategy 2: If nothing found, look for "Before" followed directly by judge name (no colon)
-    # Pattern: "Before JUDGE_NAME, TITLE"
+    # Try: Before with no colon
     if not bench_judges:
         for i, line in enumerate(lines):
             match = re.match(r'^\s*Before\s+([A-Z].*)', line, re.IGNORECASE)
@@ -66,7 +54,7 @@ def extract_bench_judges(text: str) -> List[str]:
                     j += 1
                 break
     
-    # Strategy 3: Look for judges after SUPREME COURT/HIGH COURT headers
+    # Try: judges after court headers
     if not bench_judges:
         for i, line in enumerate(lines):
             if re.search(r'(?:SUPREME COURT|HIGH COURT|COURT OF APPEAL)\s*\.?', line, re.IGNORECASE):
@@ -78,10 +66,7 @@ def extract_bench_judges(text: str) -> List[str]:
                         bench_judges.extend(judges)
                         break
     
-    # Strategy 4 (OCR fallback): Look for judge names followed by "Chief Justice" or "Judge of the Supreme Court"
-    # This handles OCR output where judge info is formatted as:
-    # "G.P.S. de Silva," → "Chief Justice"
-    # Also handles: "A.R.B. Amarasinghe, æ" or "A.R.B. Amarasinghe, '" → "Judge of the Supreme Court"
+    # OCR fallback: judge name on one line, title on next
     if not bench_judges:
         for i, line in enumerate(lines):
             current = line.strip()
@@ -109,7 +94,7 @@ def extract_bench_judges(text: str) -> List[str]:
                         judge_entry = f"{name}, {title}"
                         bench_judges.append(judge_entry)
     
-    # Deduplicate
+    # Remove duplicates
     seen: Set[str] = set()
     unique = []
     for judge in bench_judges:
@@ -121,31 +106,15 @@ def extract_bench_judges(text: str) -> List[str]:
 
 
 def extract_author_judges(text: str) -> List[str]:
-    """
-    Extract the judge(s) who authored the judgment.
-    
-    The author is identified as the judge on the bench who does NOT have "I agree"
-    statement at the end of the document. Concurring judges explicitly write "I agree".
-    
-    Args:
-        text: Full text content of the court decision
-        
-    Returns:
-        List of author judge names (typically the lone author)
-    """
-    # Find judges who agree
+    """Extract the judge who authored the judgment."""
+    # Find judges who agreed (concurring)
     agreeing_judges = _find_agreeing_judges(text)
-    
-    # Get all bench judges
     bench = extract_bench_judges(text)
     
-    # Author = bench judges minus those who agree
-    author_judges = []
-    for judge in bench:
-        if not _judge_agrees(judge, agreeing_judges):
-            author_judges.append(judge)
+    # Author: judges NOT in agreeing list
+    author_judges = [judge for judge in bench if not _judge_agrees(judge, agreeing_judges)]
     
-    # Fallback: if all agree or nothing found, return first judge
+    # If no author found, first judge is author
     return author_judges if author_judges else (bench[:1] if bench else [])
 
 
@@ -190,26 +159,12 @@ def _extract_judge_surname(name: str) -> str:
 
 
 def _find_agreeing_judges(text: str) -> Set[str]:
-    """
-    Find judges who explicitly state they agree with the judgment.
-    
-    Looks for patterns like:
-    - "JUDGE NAME, J. - I agree" (same line)
-    - "JUDGE NAME, J." followed by "I agree." on next line (separate lines)
-    Note: "1" can be OCR error for "I"
-    
-    Args:
-        text: Full text
-        
-    Returns:
-        Set of normalized judge names who agree
-    """
+    """Find judges who wrote 'I agree' concurring opinions."""
     agreeing = set()
     lines = text.split('\n')
     
-    # Look in last 50 lines for "I agree" or "1 agree" statements
+    # Check last 50 lines for "I agree" (or "1 agree" from OCR errors)
     for i, line in enumerate(lines[-50:]):
-        # Match both "I agree" and "1 agree" (OCR confusion between 1 and I)
         if re.search(r'(?:I|1)\s+(?:agree|concur)', line, re.IGNORECASE):
             # First try: Same line pattern "NAME, J. - I agree"
             match = re.match(r'^\s*([A-Z][A-Z0-9\.\s\-,]*?)(?:\s*,?\s*(?:J\.|CJ|Chief Justice|PC|C\.J\.))?\s*[-–:]*\s*(?:I|1)\s+(?:agree|concur)', 
@@ -238,18 +193,7 @@ def _find_agreeing_judges(text: str) -> Set[str]:
 
 
 def _parse_judge_line(line: str) -> List[str]:
-
-    """
-    Parse judge names from a single line.
-    
-    Handles formats like:
-    - "H. A. G. DE SILVA. J.. AMERASINGHE. J. AND DHEERARATNE, J."
-    - "A.G. DE SILVA, J., AMERASINGHE, J. AND DHEERARATNE, J."
-    - Single judge per line: "Murdu N.B. Fernando, PC,J" or "L.T.B.Dehideniya, J"
-    
-    Strategy: Detect single-judge lines and handle them simply.
-    For multi-judge lines, find patterns like "[Initials] [Names] [Title]".
-    """
+    """Parse judge names from a line."""
     judges = []
     
     # Normalize spaces

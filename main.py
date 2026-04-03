@@ -9,14 +9,7 @@ from output_handler import generate_json_output
 
 
 def process_pdfs(data_dir: str = "data", output_dir: str = "output") -> None:
-    """
-    Process all PDF files in the data directory and extract judge information.
-    
-    Args:
-        data_dir: Directory containing input PDF files (default: "data")
-        output_dir: Directory to write output JSON files (default: "output")
-    """
-    # Get all PDF files in the data directory
+    """Process all PDFs in the data folder and extract judges."""
     data_path = Path(data_dir)
     pdf_files = sorted(data_path.glob("*.pdf"))
     
